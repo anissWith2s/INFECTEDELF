@@ -1,5 +1,7 @@
 section .data
     filename db "hello", 0
+    elf_magic db 0x7F, "ELF", 0
+
     new_entry dq 0x1180         
     orig_entry dq 0
     pt_load_type dd 1           
@@ -10,6 +12,9 @@ section .data
     ; Nouvelles tailles adaptées (0x200 devrait être largement suffisant)
     segment_filesz dq 0x200     ; Taille dans le fichier
     segment_memsz dq 0x200      ; Taille en mémoire
+
+section .bss
+    elf_header resb 64
 
 section .text
     global _start
@@ -59,6 +64,28 @@ _start:
     test rax, rax
     js exit_error
     mov r8, rax             
+
+    ;verification signature elf
+    mov rax, 0               ; sys_read
+    mov rdi, r8              ; Descripteur de fichier
+    lea rsi, [rel elf_header]; Buffer pour le header ELF
+    mov rdx, 64  ; Taille à lire
+    syscall
+    ;cmp rax, elf_header
+    ;jne not_elf              ; Quitter si moins de 16 octets lus
+
+    ; Comparer les 4 premiers octets avec la signature ELF
+    mov rsi, elf_header
+    lea rdi, [rel elf_magic]
+    mov rcx, 4
+
+check_magic_bytes:
+    mov al, [rsi]
+    cmp al, [rdi]
+    jne not_elf
+    inc rsi
+    inc rdi
+    loop check_magic_bytes
 
     ; Lire l'entry point original
     mov rax, 8              
@@ -196,6 +223,15 @@ _start:
     syscall
 
     jmp exit_success
+
+not_elf:
+    ; Fermer le fichier et quitter si pas un ELF
+    mov rax, 3
+    mov rdi, r8
+    syscall
+    mov rax, 60
+    mov rdi, 1
+    syscall
 
 exit_error:
     mov rax, 60             
