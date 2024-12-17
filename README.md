@@ -114,6 +114,54 @@ D'après la documentation consultée, la résolution passe par :
 
 ---
 
+### **Documentation des Blocages et Résolutions**
+
+Au cours de ce projet d'infection ELF, plusieurs blocages ont été identifiés, analysés, et partiellement résolus. Voici un récapitulatif détaillé :
+
+---
+
+#### **1. Manipulation Manuelle des Segments ELF**
+- **Blocage :** La première tentative consistait à transformer un segment PT_NOTE en PT_LOAD manuellement à l'aide d'outils comme `dd` et d'éditeurs hexadécimaux. Cette méthode a échoué principalement en raison :
+   - D'offsets imprécis.
+   - De modifications incohérentes de la structure ELF, rendant le fichier corrompu.
+- **Résolution :** Bien que cette approche n'ait pas abouti, elle a permis de mieux comprendre la structure ELF et de clarifier les étapes requises pour une manipulation correcte.
+
+---
+
+#### **2. Segmentation Fault après Injection du Shellcode**
+- **Blocage :** Après avoir injecté un shellcode affichant un texte, des **segfaults** sont apparus. L’analyse a révélé que :
+   - La taille du segment PT_NOTE était insuffisante pour contenir le shellcode.
+   - Le shellcode était injecté correctement, mais dépassait les limites du segment.
+- **Résolution :** 
+   - J'ai repéré manuellement un **segment PT_NOTE** à l'offset **0x368**.
+   - Le segment a été transformé en PT_LOAD avec des permissions d'exécution (**R E**).
+   - **Agrandissement de la taille du segment** (filesize et memsize) pour éviter les dépassements et segfaults.
+
+---
+
+#### **3. Lancement d'un Shell et Problèmes de Terminal**
+- **Blocage :** Lors de l'injection d'un shell (`/bin/sh`), le comportement suivant a été observé :
+   - Le shell se lançait mais segfaultait après **3 secondes**.
+   - Après retour au terminal d’origine, le shell injecté restait en arrière-plan sans contrôle approprié.
+- **Analyse :** Ce problème a été identifié comme lié à la **gestion du terminal (TTY)** :
+   - Le shell lancé n'était pas configuré comme **leader de groupe de processus**.
+   - Il perdait sa connexion au terminal, ce qui causait le segfault.
+- **Tentative de Résolution :**
+   - Il a été proposé d’ajouter des mécanismes tels que `setpgid(0, 0)` pour configurer le shell comme leader de groupe.
+   - Une attente avec `wait4()` pour synchroniser correctement le parent avec le processus shell.
+   - Toutefois, ces ajustements n’ont pas encore été intégrés ni testés de manière concluante.
+
+---
+
+#### **4. Manque de Dynamisme dans les Offsets**
+- **Blocage :** L'injection du shellcode et les modifications du segment ont été réalisées **de manière statique**. Les offsets et tailles étaient déterminés manuellement.
+- **Résolution Provisoire :** 
+   - J'ai utilisé des outils comme `readelf` et un éditeur hexadécimal pour repérer les offsets précis.
+   - Le segment PT_NOTE a été identifié à **0x368** et modifié en PT_LOAD.
+   - Cette approche a fonctionné mais manque de dynamisme, car elle ne s’adapte pas automatiquement à d’autres fichiers ELF.
+
+--- 
+
 ## Lancement du Projet
 
 Les fichiers nécessaires sont :
@@ -165,7 +213,14 @@ Les fichiers nécessaires sont :
 
 ## Conclusion
 
+Le projet a suivi un cheminement progressif :
+1. Manipulation manuelle pour comprendre la structure ELF.
+2. Automatisation partielle avec Python.
+3. Implémentation complète en assembleur.
+
 Ce projet a permis de :
 1. Comprendre la structure des fichiers ELF et la manipulation des segments.
 2. Injecter un shellcode dans un fichier ELF et modifier son point d’entrée.
 3. Identifier des défis techniques liés à la gestion des processus et des terminaux.
+
+Le code final est structuré pour être maintenable, avec des sections distinctes pour chaque fonctionnalité. Les résolutions des blocages ont été documentées pour des réutilisations futures.
