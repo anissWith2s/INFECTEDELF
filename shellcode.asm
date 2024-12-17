@@ -9,7 +9,6 @@ section .data
     segment_offset dq 0x1180    
     segment_vaddr dq 0x1180     
     segment_paddr dq 0x1180     
-    ; Nouvelles tailles adaptées (0x200 devrait être largement suffisant)
     segment_filesz dq 0x200     ; Taille dans le fichier
     segment_memsz dq 0x200      ; Taille en mémoire
 
@@ -71,8 +70,6 @@ _start:
     lea rsi, [rel elf_header]; Buffer pour le header ELF
     mov rdx, 64  ; Taille à lire
     syscall
-    ;cmp rax, elf_header
-    ;jne not_elf              ; Quitter si moins de 16 octets lus
 
     ; Comparer les 4 premiers octets avec la signature ELF
     mov rsi, elf_header
